@@ -1,0 +1,36 @@
+struct Light
+{
+	vec4 positionRadius;
+	vec4 colorSpec;
+};
+
+layout (std430, binding = 0) readonly buffer LightBuffer
+{
+	Light lights[];
+} lightBuffer;
+
+vec3 calcLight(Light light, vec3 diffuseColor, float specularIntensity, vec3 normal, vec3 viewDir, vec3 fragPos)
+{
+	vec3 lightDir = light.positionRadius.xyz - fragPos;
+	vec3 lightPos = normalize(lightDir);
+	vec3 halfwayDir = normalize(lightPos + viewDir);
+
+	// Attenuation
+	float attenuation = 1.0;
+	float denom = length(lightDir)/(light.positionRadius.w / 3.47) + 1.0;
+	attenuation = 1.0 / (denom*denom);
+	if (attenuation <= 0.05) return vec3(0.0);
+	attenuation = max((attenuation - 0.05) / (1.0 - 0.05), 0.0);
+
+	// Diffuse
+	float diff = max(dot(normal, lightPos), 0.0);
+
+	// Specular
+	float spec = pow(max(dot(normal, halfwayDir), 0.0), 64.0);
+
+	// Combine results
+	vec3 diffuse  = light.colorSpec.xyz * diff * diffuseColor;
+	vec3 specular = light.colorSpec.xyz * light.colorSpec.w * spec * specularIntensity;
+
+	return attenuation * (diffuse + specular);
+}
